@@ -9,7 +9,9 @@ import TheNavbar from './components/TheNavbar.vue';
 <template>
   <div>
     <TheNavbar/>
+    <Suspense>
     <RouterView/>
+  </Suspense>
   </div>
   
   

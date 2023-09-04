@@ -6,21 +6,38 @@ export const useCounterStore = defineStore('counter', () => {
   const loading = ref(false);
   const countries = ref ([])
 
-  async function getCountryData(name){
-    console.log("Searching...");
-  loading.value = true;
-    try{
-      const feedback = await axios(
-        `https://restcountries.com/v3.1/all${name}`
-      );
-      countries.value = feedback.data;
-      loading.value = false;
+  async function getCountries(name) {
+    loading.value = true;
+    try {
+      const response = await axios.get(`https://restcountries.com/v3.1/all/${name}`)
+      countries.value = response.data
+    } catch (error) {
+      console.error(error)
     }
-      catch(error){
-      console.log(error)
-      }
   }
 
-  return { countries, getCountryData };
-});
+  async function getCountryByName(name) {
+    console.log("Searching...");
+    loading.value = true;
+    try {
+      const response = await axios.get(`https://restcountries.com/v3.1/name/${name}`)
+      return response.data[0]
+    } catch (error) {
+      console.error(error)
+      
 
+
+    
+
+    }
+
+
+
+  return {  loading,
+    countries: computed(() => countries.value),
+    getCountries,
+    getCountryByName,
+   };
+}
+  
+})

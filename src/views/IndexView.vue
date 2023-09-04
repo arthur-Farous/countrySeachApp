@@ -1,26 +1,17 @@
 <script setup>
-import{onUpdated, ref,watch} from 'vue'
+import { useCounterStore } from '../stores/counter';
+import{onMounted, ref,watch} from 'vue'
 import { computed } from 'vue';
-import { useCounterStore} from '../stores/counter';
-// import debounce from 'lodash.debouce';
 import { useRoute, useRouter } from 'vue-router';
- const countryStore = useCounterStore();
  const inputText = ref('');
  const route = useRoute();
  const router = useRouter();
- const loading = ref(false);
+ const selectedContinent = ref('');
+ const countryStore = useCounterStore()
 
 
 
-
-const navigateToCountryDetail = (countryName) => {
-  router.push({ name: 'Detail', params: { name: countryName } });
-};
-
-
-const selectedContinent = ref('');
-
-const customDebounce = (fn, delay) => {
+ const customDebounce = (fn, delay) => {
   let timeoutId;
   return (...args) => {
     clearTimeout(timeoutId);
@@ -35,42 +26,65 @@ const handleInputDebounced = customDebounce((newValue) => {
 }, 500); 
 
 watch(inputText, handleInputDebounced);
-//console.log("Debounce is working")
 
-// const filteredCountries = computed(() => {
-//   const searchTerm = inputText.value.toLowerCase();
-//   // Filter countries by both search term and selected continent
-//   return countryStore.countries.filter(countryDetails => {
-//     const nameMatches = countryDetails.name.common.toLowerCase().includes(searchTerm);
-//     const continentMatches = selectedContinent.value === '' || countryDetails.region.toLowerCase() === selectedContinent.value.toLowerCase();
-//     return nameMatches && continentMatches;
-//   });
-// });
 
-const filteredCountries = computed(() => {
+
+ const filteredCountries = computed(() => {
+  if (!countryStore.countries) {
+    return [];
+  }
   const searchTerm = inputText.value.toLowerCase();
   const selectedContinentValue = selectedContinent.value.toLowerCase();
-
-  return countryStore.countries.filter((countryDetails) => {
+  
+  return countryStore.countries.map((countryDetails) => {
     const commonName = countryDetails.name.common.toLowerCase();
     const region = countryDetails.region.toLowerCase();
 
-    // Check if the country matches the selected continent
     const continentMatch = selectedContinentValue === '' || region === selectedContinentValue;
-
-    // Check if the country matches the search term
     const searchMatch = searchTerm === '' || commonName.includes(searchTerm);
 
-    return continentMatch && searchMatch;
-  });
+    return { ...countryDetails, continentMatch, searchMatch };
+  }).filter((country) => country.continentMatch && country.searchMatch);
 });
+
+
+// onMounted(async () => {
+//   try {
+//     await countryStore.$getCountries(inputText.value); // Call the function to fetch countries.
+//   } catch (error) {
+//     console.error(error);
+//   }
+// });
+
+  // const countryDetails = countryStore.getCountries()
   
+  const countryDetails = countryStore.getCountries(inputText.value);
 
- countryStore.getCountryData(inputText.value);
 
- onUpdated(()=>{
-   countryStore.getCountryData(inputText.value)
- })
+  onMounted(async () => {
+  try {
+    await countryStore.getCountries(inputText.value); 
+  } catch (error) {
+    console.error(error);
+  }
+});
+ 
+
+// Debounced input
+
+// For the loader component.
+const loading = computed(() => {
+  return countryStore.loading && (inputText.value || selectedContinent.value);
+  countryStore.loading = false;
+});
+
+// Navigating To the singlepage view
+const navigateToCountryDetail = (countryName) => {
+  router.push({ name: 'Detail', params: { name: countryName } });
+};
+
+//  countryStore.getCountryData(inputText.value);
+
 
 
 </script>
@@ -83,18 +97,17 @@ const filteredCountries = computed(() => {
             <input  class="custom-placeholder"  type="text"  placeholder="Search for a country..." v-model="inputText"/>
         </div>
         <div class="Selection">  
-            <select v-model="selectedContinent">
-              <label>Filter By Region</label>
-                <option value="#">Filter By Region</option>
+            <select v-model="selectedContinent" class="select_id">
+                <option  value="">Filter By Region</option>
                 <option value="Africa">Africa</option>
                 <option value="Americas">America</option>
                 <option value="Asia">Asia</option>
                 <option value="Europe">Europe</option>
-                <option value="Oceania">Ocenia</option>
+                <option value="Oceania">Oceania</option>
             </select>
         </div>
     </div>
-    <div class="loadingComponent" v-if="loading">
+    <div class="loadingComponent"   v-if="loading">
       <div class="lds-roller">
         <div></div>
         <div></div>
@@ -107,7 +120,7 @@ const filteredCountries = computed(() => {
       </div>
     </div>
      
-    <div class="class">
+    <div class="class" v-if="filteredCountries.length">
       <div @click="navigateToCountryDetail(countryDetails.name.common)"
      v-for="countryDetails in filteredCountries" :key="countryDetails.name.common" class="card">
         <img :src="countryDetails.flags.svg"/>
@@ -172,6 +185,19 @@ flex-shrink: 0;
 background: #FFF;
 box-shadow: 0px 2px 9px 0px rgba(0, 0, 0, 0.05);
 
+}
+
+.Selection{
+  padding: 14px 91px 14px 24px;
+}
+
+.select_id{
+  color: #111517;
+font-size: 12px;
+font-style: normal;
+font-weight: 400;
+line-height: 20px; /* 166.667% */
+border: none;
 }
 .custom-placeholder::placeholder{
     color: #C4C4C4;
@@ -321,10 +347,13 @@ lds-roller {
 }
 
 .loadingComponent {
+
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 30%;
+  margin: 0 auto;
+  height: 50%;
+  padding: 50px;
 }
 @media(min-width: 1024px) {
     .outerDiv{
@@ -334,6 +363,11 @@ lds-roller {
        justify-content: space-between;
     }
 
+    .Selection{
+      border-radius: 5px;
+background: #FFF;
+box-shadow: 0px 2px 9px 0px rgba(0, 0, 0, 0.05);
+    }
     .search_box{
     max-width: 480px;
     width: 100%;
